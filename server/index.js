@@ -6,7 +6,8 @@ const {
   generateRandomString, credit, debit, 
   getCredits, getDebits, patch_withdraw, 
   getAllDashboard, getTransactions, getUser,
-  create_bene, create_other_bene,
+  create_bene, create_other_bene,getIntraBeneficiaries,
+  getInterBeneficiaries,getAccountUser,transfer
 } = require('./random')
 require('dotenv').config()
 
@@ -54,7 +55,7 @@ async function patch(user,amount){
   const collection = database.collection(collectionName);
   const query = {username: user}
   try {
-    const findOneResult = await collection.updateOne(query,{$set:{"balance":amount, "deposits":amount}});
+    const findOneResult = await collection.updateOne(query,{$set:{"balance":parseInt(amount), "deposits":parseInt(amount)}});
     if (findOneResult.modifiedCount === 1) {
       console.log(`${user} updated with new price ${amount} .\n`);
       return true
@@ -65,6 +66,54 @@ async function patch(user,amount){
   await client.close(); 
 
 }
+
+
+async function onHold(user){
+  const uri = process.env.uri;  
+  const client = new MongoClient(uri);
+  await client.connect();
+  const dbName = "CrestBank";
+  const collectionName = "Dashboard";
+  const database = client.db(dbName);
+  const collection = database.collection(collectionName);
+  const query = {username: user}
+  try {
+    const findOneResult = await collection.updateOne(query,{$set:{"active":"false"}});
+    if (findOneResult.modifiedCount === 1) {
+      console.log(`${user} updated with hold on account .\n`);
+      return true
+    }
+  } catch (err) {
+    console.error(`Something went wrong trying to find one document: ${err}\n`);
+  }
+  await client.close(); 
+
+}
+
+async function releaseHold(user){
+  const uri = process.env.uri;  
+  const client = new MongoClient(uri);
+  await client.connect();
+  const dbName = "CrestBank";
+  const collectionName = "Dashboard";
+  const database = client.db(dbName);
+  const collection = database.collection(collectionName);
+  const query = {username: user}
+  try {
+    const findOneResult = await collection.updateOne(query,{$set:{"active":"true"}});
+    if (findOneResult.modifiedCount === 1) {
+      console.log(`${user} updated with hold on account .\n`);
+      return true
+    }
+  } catch (err) {
+    console.error(`Something went wrong trying to find one document: ${err}\n`);
+  }
+  await client.close(); 
+
+}
+
+
+
 
 async function getDashBoard(_username){
     const uri = process.env.uri;
@@ -164,7 +213,8 @@ async function register(_username, _password, _country, _email, _address, _mobil
     dps: 0,
     loan: 0,
     username: _username,
-    withdrawals:0
+    withdrawals:0,
+    active: "true"
   }
   try {
     const insertOneUser = await user_collection.insertOne(user);
@@ -315,6 +365,24 @@ app.get('/credits/:user', (req,res)=>{
 })
 
 
+app.get('/beneficiaries/:user', (req,res)=>{
+  async function getMyCredit(){
+      const { user } = req.params;
+      const data = await getIntraBeneficiaries(user);
+      res.send({data:data})
+  }getMyCredit()
+})
+
+app.get('/inter_beneficiaries/:user', (req,res)=>{
+  async function getMyCredit(){
+      const { user } = req.params;
+      const data = await getInterBeneficiaries(user);
+      res.send({data:data})
+  }getMyCredit()
+})
+
+
+
 app.get('/debits/:user', (req,res)=>{
   async function getMyUsers(){
       const { user } = req.params;
@@ -341,6 +409,16 @@ app.get('/user/:user', (req,res)=>{
   }getMyUser()
 })
 
+app.get('/account_num/:acc', (req,res)=>{
+  async function getMyAcc(){
+      const { acc } = req.params;
+      const data = await getAccountUser(acc);
+      res.send({data:data})
+  }getMyAcc()
+})
+
+
+
 app.get('/accounts', (req,res)=>{
   async function getMyUsers(){
       const data = await getAllDashboard();
@@ -361,6 +439,36 @@ app.post("/update", (req, res) => {
     }
   }approve()
 })
+
+
+
+app.post("/hold", (req, res) => {
+  async function approve() {
+    console.log(req.body)
+    const { user } = req.body;
+    const response = await onHold(user)
+    if(response){
+      res.status(200).send(response)
+    }else{
+    res.status(400).send(false);
+    }
+  }approve()
+})
+
+
+app.post("/release", (req, res) => {
+  async function approve() {
+    console.log(req.body)
+    const { user } = req.body;
+    const response = await releaseHold(user)
+    if(response){
+      res.status(200).send(response)
+    }else{
+    res.status(400).send(false);
+    }
+  }approve()
+})
+
 
 app.post("/create_beneficiary", (req, res) => {
   async function approve() {
@@ -387,6 +495,24 @@ app.post("/other_beneficiary", (req, res) => {
     }
   }approve()
 })
+
+
+app.post("/transfer", (req, res) => {
+  async function approve() {
+    console.log(req.body)
+    const { user, amount, receiver } = req.body;
+    const response = await transfer(user,amount,receiver)
+    if(response){
+      res.status(200).send(response)
+    }else{
+    res.status(400).send(false);
+    }
+  }approve()
+})
+
+
+
+
 
 
 const port = 8000

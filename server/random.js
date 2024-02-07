@@ -125,9 +125,57 @@ async function getCredits(user){
   await client.close(); 
 } 
 
+async function getIntraBeneficiaries(user){
+
+  const uri = process.env.uri;  
+  const client = new MongoClient(uri);
+  await client.connect();
+  const dbName = "CrestBank";
+  const collectionName = "Beneficiaries";
+  const database = client.db(dbName);
+  const collection = database.collection(collectionName);
+  
+  
+  try {
+    const documents = await collection.find({username:user}).toArray()
+    if (documents === null) {
+      console.log(`Couldn't find any package.\n`);
+    } else {
+      return(JSON.stringify(documents))
+    }
+  } catch (err) {
+    console.error(`Something went wrong trying to find one document: ${err}\n`);
+  }
+  await client.close(); 
+} 
+
+async function getInterBeneficiaries(user){
+
+  const uri = process.env.uri;  
+  const client = new MongoClient(uri);
+  await client.connect();
+  const dbName = "CrestBank";
+  const collectionName = "OutsideBeneficiaries";
+  const database = client.db(dbName);
+  const collection = database.collection(collectionName);
+  
+  
+  try {
+    const documents = await collection.find({username:user}).toArray()
+    if (documents === null) {
+      console.log(`Couldn't find any package.\n`);
+    } else {
+      return(JSON.stringify(documents))
+    }
+  } catch (err) {
+    console.error(`Something went wrong trying to find one document: ${err}\n`);
+  }
+  await client.close(); 
+} 
+
+
 
 async function getDebits(user){
-
   const uri = process.env.uri;  
   const client = new MongoClient(uri);
   await client.connect();
@@ -162,7 +210,7 @@ async function patch_withdraw(user,amount){
   const query = {username: user}
 
   try {
-    const findOneResult = await collection.updateOne(query,{$set:{"withdrawals":amount}});
+    const findOneResult = await collection.updateOne(query,{$set:{"withdrawals":parseInt(amount)}});
     if (findOneResult.modifiedCount === 1) {
       console.log(`${user} updated with new price ${amount} .\n`);
       return true
@@ -245,6 +293,34 @@ async function getUser(user){
   await client.close(); 
 } 
 
+
+
+async function getAccountUser(acc){
+
+  const uri = process.env.uri;  
+  const client = new MongoClient(uri);
+  await client.connect();
+  const dbName = "CrestBank";
+  const collectionName = "Users";
+  const database = client.db(dbName);
+  const collection = database.collection(collectionName);
+  const query = {acc_num: acc}  
+  try {
+    const documents = await collection.findOne(query);
+    if (documents === null) {
+      console.log(`Couldn't find any package.\n`);
+    } else {
+      return(JSON.stringify(documents))
+    }
+  } catch (err) {
+    console.error(`Something went wrong trying to find one document: ${err}\n`);
+  }
+  await client.close(); 
+} 
+
+
+
+
 async function create_bene(username,account_name,account_number,short_name ) {
   const uri = process.env.uri;
   const client = new MongoClient(uri);  
@@ -302,6 +378,103 @@ async function create_other_bene(username,bank_name,sort_code,routing_number,acc
 }
 
 
+async function transfer(user,amount,receiver){
+  const uri = process.env.uri;  
+  const client = new MongoClient(uri);
+  await client.connect();
+  const dbName = "CrestBank";
+  const collectionName = "Dashboard";
+  const database = client.db(dbName);
+  const collection = database.collection(collectionName);
+  const query = {username: user}
+  const receiver_query = {account:receiver}
+  const date = new Date().toDateString();
+  try {
+    const result = await collection.findOne(query);
+    const receiver_result = await collection.findOne(receiver_query);
+    const receiver_new_balance = parseInt(receiver_result.balance) + parseInt(amount) ;
+    const prev_balance = parseInt(result.balance)
+    const new_balance = prev_balance - parseInt(amount);
+    const new_withdrawal = parseInt(result.withdrawals) + parseInt(amount);
+    const new_deposits = parseInt(receiver_result.deposits) + parseInt(amount);
+    const SenderBalance = await collection.updateOne(query,{$set:{"balance":new_balance, "withdrawals":new_withdrawal}});
+    const RecieverBalance = await collection.updateOne(receiver_query,{$set:{"balance":receiver_new_balance, "deposits":new_deposits}});
+
+    if(SenderBalance.modifiedCount === 1 && RecieverBalance.modifiedCount === 1) {
+      console.log(`${user} updated with new price ${amount} .\n`);
+
+
+
+
+    const options = { ordered: true };
+    const tx_collection = database.collection("Debits");
+    const tx_credit = database.collection("Credits")
+    const Transactions_collection = database.collection("Transactions")
+
+    const sn = generateRandomString()
+    const tx = generateRandomString()
+    const debit_txs = {
+      username: user,
+      amount: amount,
+      sn: sn,
+      tx: receiver,
+      date: date
+    };
+    const credit_txs = {
+      username: receiver_result.username,
+      amount: amount,
+      sn: sn,
+      tx: result.account,
+      date: date
+    };
+    const debit_transactions = {
+      username: user,
+      amount: amount,
+      sn: sn,
+      tx: tx,
+      date: date, 
+      type: "debit",
+      category: "Intra Bank",
+      receiptient: receiver
+    }
+    const credit_transactions = {
+      username: receiver_result.username,
+      amount: amount,
+      sn: sn,
+      tx: tx,
+      date: date, 
+      type: "credit",
+      category: "Intra Bank",
+      sender: result.account
+    }
+    try {
+      const insertDebit = await tx_collection.insertOne(debit_txs);
+      const insertCredit = await tx_credit.insertOne(credit_txs);
+      const insertTransactions = await Transactions_collection.insertMany([debit_transactions,credit_transactions],options);
+    } catch (err) {
+      console.error(`Something went wrong trying to insert the new documents: ${err}\n`);
+    }
+
+
+
+
+
+
+
+
+      return true
+    }
+  } catch (err) {
+    console.error(`Something went wrong trying to find one document: ${err}\n`);
+  }
+  await client.close(); 
+
+}
+
+
+
+
+
 
 module.exports = {
   generateRandomString,
@@ -315,4 +488,8 @@ module.exports = {
   getUser,
   create_bene,
   create_other_bene,
+  getIntraBeneficiaries,
+  getInterBeneficiaries,
+  getAccountUser,
+  transfer
 };
