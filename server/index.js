@@ -49,13 +49,15 @@ async function patch(user,amount){
   const uri = process.env.uri;  
   const client = new MongoClient(uri);
   await client.connect();
-  const dbName = "CrestBank";
+  const dbName = "CrestBank"";
   const collectionName = "Dashboard";
   const database = client.db(dbName);
   const collection = database.collection(collectionName);
   const query = {username: user}
   try {
-    const findOneResult = await collection.updateOne(query,{$set:{"balance":parseInt(amount), "deposits":parseInt(amount)}});
+    const result = await collection.findOne(query);
+    const bal = parseInt(result.balance)
+    const findOneResult = await collection.updateOne(query,{$set:{"balance":parseInt(amount) + bal, "deposits":parseInt(amount) + bal}});
     if (findOneResult.modifiedCount === 1) {
       console.log(`${user} updated with new price ${amount} .\n`);
       return true
@@ -72,7 +74,7 @@ async function onHold(user){
   const uri = process.env.uri;  
   const client = new MongoClient(uri);
   await client.connect();
-  const dbName = "CrestBank";
+  const dbName = "CrestBank"";
   const collectionName = "Dashboard";
   const database = client.db(dbName);
   const collection = database.collection(collectionName);
@@ -90,12 +92,64 @@ async function onHold(user){
 
 }
 
+
+
+async function holdAccount(user){
+  const uri = process.env.uri;  
+  const client = new MongoClient(uri);
+  await client.connect();
+  const dbName = "CrestBank"";
+  const collectionName = "Dashboard";
+  const database = client.db(dbName);
+  const collection = database.collection(collectionName);
+  const query = {username: user}
+  try {
+    const findOneResult = await collection.updateOne(query,{$set:{"active":"false"}});
+    if (findOneResult.modifiedCount === 1) {
+      console.log(`${user} updated with hold on account .\n`);
+      return true
+    }
+  } catch (err) {
+    console.error(`Something went wrong trying to find one document: ${err}\n`);
+  }
+  await client.close(); 
+
+}
+
+
+
+async function releaseAccount(user){
+  const uri = process.env.uri;  
+  const client = new MongoClient(uri);
+  await client.connect();
+  const dbName = "CrestBank"";
+  const collectionName = "Dashboard";
+  const database = client.db(dbName);
+  const collection = database.collection(collectionName);
+  const query = {username: user}
+  try {
+    const findOneResult = await collection.updateOne(query,{$set:{"active":"true"}});
+    if (findOneResult.modifiedCount === 1) {
+      console.log(`${user} updated with hold on account .\n`);
+      return true
+    }
+  } catch (err) {
+    console.error(`Something went wrong trying to find one document: ${err}\n`);
+  }
+  await client.close(); 
+
+}
+
+
+
+
+
 async function releaseHold(user){
   const uri = process.env.uri;  
   const client = new MongoClient(uri);
   await client.connect();
-  const dbName = "CrestBank";
-  const collectionName = "Dashboard";
+  const dbName = "CrestBank"";
+  const collectionName = "Users";
   const database = client.db(dbName);
   const collection = database.collection(collectionName);
   const query = {username: user}
@@ -120,8 +174,8 @@ async function getDashBoard(_username){
     
   const client = new MongoClient(uri);
   await client.connect();
-  const dbName = "CrestBank";
-  const collectionName = "Dashboard";
+  const dbName = "CrestBank"";
+  const collectionName = "Users";
 
   const database = client.db(dbName);
   const collection = database.collection(collectionName);
@@ -150,7 +204,7 @@ async function login(username,password) {
   const uri = process.env.uri;
   const client = new MongoClient(uri);
   await client.connect();
-  const dbName = "CrestBank";
+  const dbName = "CrestBank"";
   const collectionName = "Users";
   const database = client.db(dbName);
   const collection = database.collection(collectionName);
@@ -161,8 +215,8 @@ async function login(username,password) {
     if (findOneResult !== null) {
       if (findOneResult.password === password) {
         await client.close();
-        return true;
-
+        return findOneResult ;
+        //return true;
       } else {
         await client.close();
         return false;
@@ -184,8 +238,8 @@ async function register(_username, _password, _country, _email, _address, _mobil
   const uri = process.env.uri;
   const client = new MongoClient(uri);  
   await client.connect();
-  const dbName = "CrestBank";
-  const collectionName = "Users";
+  const dbName = "CrestBank"";
+  const collectionName = "Admins";
   const database = client.db(dbName);
   const user_collection = database.collection(collectionName);
   const dashboard_collection = database.collection("Dashboard");
@@ -201,7 +255,8 @@ async function register(_username, _password, _country, _email, _address, _mobil
     first_name: _first,
     last_name: _last,
     maiden_name: _maiden,
-    acc_num : acc_number
+    acc_num : acc_number,
+    active: "true"
   };
 
   const dashboard = {
@@ -442,6 +497,12 @@ app.post("/update", (req, res) => {
 
 
 
+
+
+
+
+
+// reject account from transfer
 app.post("/hold", (req, res) => {
   async function approve() {
     console.log(req.body)
@@ -455,12 +516,42 @@ app.post("/hold", (req, res) => {
   }approve()
 })
 
+// reject account from login
+app.post("/hold_account", (req, res) => {
+  async function approve() {
+    console.log(req.body)
+    const { user } = req.body;
+    const response = await holdAccount(user)
+    if(response){
+      res.status(200).send(response)
+    }else{
+    res.status(400).send(false);
+    }
+  }approve()
+})
 
+
+// release account from transfer hold
 app.post("/release", (req, res) => {
   async function approve() {
     console.log(req.body)
     const { user } = req.body;
     const response = await releaseHold(user)
+    if(response){
+      res.status(200).send(response)
+    }else{
+    res.status(400).send(false);
+    }
+  }approve()
+})
+
+
+// release account from login hold
+app.post("/release_account", (req, res) => {
+  async function approve() {
+    console.log(req.body)
+    const { user } = req.body;
+    const response = await releaseAccount(user)
     if(response){
       res.status(200).send(response)
     }else{
