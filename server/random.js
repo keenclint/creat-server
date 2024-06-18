@@ -6,18 +6,18 @@ function generateRandomString() {
   const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
   let randomString = '';
 
-  // Generate 2 random letters
+  // // Generate 2 random letters
   // for (let i = 0; i < 2; i++) {
   //   const randomIndex = Math.floor(Math.random() * letters.length);
   //   randomString += letters.charAt(randomIndex);
   // }
 
-  // Generate 13 random numbers
+  // Generate 10 random numbers
   for (let i = 0; i < 10; i++) {
     randomString += Math.floor(Math.random() * 10);
   }
 
-  return randomString.toUpperCase();
+  return randomString;
 }
 
 async function credit(_username, _amount,date) {
@@ -210,7 +210,10 @@ async function patch_withdraw(user,amount){
   const query = {username: user}
 
   try {
-    const findOneResult = await collection.updateOne(query,{$set:{"withdrawals":parseInt(amount)}});
+    const result = await collection.findOne(query);
+    const bal = parseInt(result.balance)
+    const findOneResult = await collection.updateOne(query,{$set:{"withdrawals":parseInt(result.withdrawals) + parseInt(amount)}});
+    const findResult = await collection.updateOne(query,{$set:{"balance":bal - parseInt(amount)}});
     if (findOneResult.modifiedCount === 1) {
       console.log(`${user} updated with new price ${amount} .\n`);
       return true
