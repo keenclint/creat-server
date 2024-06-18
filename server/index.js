@@ -49,7 +49,7 @@ async function patch(user,amount){
   const uri = process.env.uri;  
   const client = new MongoClient(uri);
   await client.connect();
-  const dbName = "CrestBank"";
+  const dbName = "CrestBank"
   const collectionName = "Dashboard";
   const database = client.db(dbName);
   const collection = database.collection(collectionName);
@@ -74,7 +74,7 @@ async function onHold(user){
   const uri = process.env.uri;  
   const client = new MongoClient(uri);
   await client.connect();
-  const dbName = "CrestBank"";
+  const dbName = "CrestBank"
   const collectionName = "Dashboard";
   const database = client.db(dbName);
   const collection = database.collection(collectionName);
@@ -98,7 +98,7 @@ async function holdAccount(user){
   const uri = process.env.uri;  
   const client = new MongoClient(uri);
   await client.connect();
-  const dbName = "CrestBank"";
+  const dbName = "CrestBank"
   const collectionName = "Dashboard";
   const database = client.db(dbName);
   const collection = database.collection(collectionName);
@@ -122,7 +122,7 @@ async function releaseAccount(user){
   const uri = process.env.uri;  
   const client = new MongoClient(uri);
   await client.connect();
-  const dbName = "CrestBank"";
+  const dbName = "CrestBank"
   const collectionName = "Dashboard";
   const database = client.db(dbName);
   const collection = database.collection(collectionName);
@@ -148,7 +148,7 @@ async function releaseHold(user){
   const uri = process.env.uri;  
   const client = new MongoClient(uri);
   await client.connect();
-  const dbName = "CrestBank"";
+  const dbName = "CrestBank"
   const collectionName = "Users";
   const database = client.db(dbName);
   const collection = database.collection(collectionName);
@@ -174,7 +174,7 @@ async function getDashBoard(_username){
     
   const client = new MongoClient(uri);
   await client.connect();
-  const dbName = "CrestBank"";
+  const dbName = "CrestBank"
   const collectionName = "Users";
 
   const database = client.db(dbName);
@@ -204,7 +204,7 @@ async function login(username,password) {
   const uri = process.env.uri;
   const client = new MongoClient(uri);
   await client.connect();
-  const dbName = "CrestBank"";
+  const dbName = "CrestBank"
   const collectionName = "Users";
   const database = client.db(dbName);
   const collection = database.collection(collectionName);
@@ -238,7 +238,7 @@ async function register(_username, _password, _country, _email, _address, _mobil
   const uri = process.env.uri;
   const client = new MongoClient(uri);  
   await client.connect();
-  const dbName = "CrestBank"";
+  const dbName = "CrestBank"
   const collectionName = "Admins";
   const database = client.db(dbName);
   const user_collection = database.collection(collectionName);
