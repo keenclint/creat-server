@@ -5,11 +5,17 @@ const bodyParser = require('body-parser');
 const {
   generateRandomString, credit, debit, 
   getCredits, getDebits, patch_withdraw, 
-  getAllDashboard, getTransactions, getUser,
+  getAllCrestBank, getTransactions, getUser,
   create_bene, create_other_bene,getIntraBeneficiaries,
   getInterBeneficiaries,getAccountUser,transfer
 } = require('./random')
 require('dotenv').config()
+
+const pinataSDK = require('@pinata/sdk');
+const { Readable } =  require('stream')
+const multer = require('multer');
+
+const upload = multer();
 
 
 const app = express()
@@ -18,6 +24,43 @@ app.use(express.json())
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 
+const pinataApiKey = '3cc1438cb9472037c822';
+const pinataApiSecret = '3cac6af98f0b3a69a00aa6b3c6948876a465d15e9b36388a77efef8348ca8c21';
+const pinata = new pinataSDK(pinataApiKey, pinataApiSecret);
+async function storeImages(file, name) {
+  console.log('Uploading to IPFS');
+  const options = {
+    pinataMetadata: {
+      name,
+    },
+  };
+  try {
+    const result = await pinata.pinFileToIPFS(file, options);
+    return result;
+  } catch (error) {
+    console.log(error);
+    throw error;
+  }
+}
+
+class BufferStream extends Readable {
+  buffer;
+  sent;
+  constructor(buffer) {
+    super();
+    this.buffer = buffer;
+    this.sent = false;
+  }
+
+  _read() {
+    if (!this.sent) {
+      this.push(this.buffer);
+      this.sent = true;
+    } else {
+      this.push(null);
+    }
+  }
+}
 
 
 async function getUsers(){
@@ -25,7 +68,7 @@ async function getUsers(){
   const uri = process.env.uri;  
   const client = new MongoClient(uri);
   await client.connect();
-  const dbName = "CrestBank";
+  const dbName = "Bankers";
   const collectionName = "Users";
   const database = client.db(dbName);
   const collection = database.collection(collectionName);
@@ -49,8 +92,8 @@ async function patch(user,amount){
   const uri = process.env.uri;  
   const client = new MongoClient(uri);
   await client.connect();
-  const dbName = "CrestBank";
-  const collectionName = "Dashboard";
+  const dbName = "Bankers";
+  const collectionName = "CrestBank";
   const database = client.db(dbName);
   const collection = database.collection(collectionName);
   const query = {username: user}
@@ -74,8 +117,8 @@ async function onHold(user){
   const uri = process.env.uri;  
   const client = new MongoClient(uri);
   await client.connect();
-  const dbName = "CrestBank";
-  const collectionName = "Dashboard";
+  const dbName = "Bankers";
+  const collectionName = "CrestBank";
   const database = client.db(dbName);
   const collection = database.collection(collectionName);
   const query = {username: user}
@@ -98,7 +141,7 @@ async function holdAccount(user){
   const uri = process.env.uri;  
   const client = new MongoClient(uri);
   await client.connect();
-  const dbName = "CrestBank";
+  const dbName = "Bankers";
   const collectionName = "Users";
   const database = client.db(dbName);
   const collection = database.collection(collectionName);
@@ -122,7 +165,7 @@ async function releaseAccount(user){
   const uri = process.env.uri;  
   const client = new MongoClient(uri);
   await client.connect();
-  const dbName = "CrestBank";
+  const dbName = "Bankers";
   const collectionName = "Users";
   const database = client.db(dbName);
   const collection = database.collection(collectionName);
@@ -148,8 +191,8 @@ async function releaseHold(user){
   const uri = process.env.uri;  
   const client = new MongoClient(uri);
   await client.connect();
-  const dbName = "CrestBank";
-  const collectionName = "Dashboard";
+  const dbName = "Bankers";
+  const collectionName = "CrestBank";
   const database = client.db(dbName);
   const collection = database.collection(collectionName);
   const query = {username: user}
@@ -169,13 +212,13 @@ async function releaseHold(user){
 
 
 
-async function getDashBoard(_username){
+async function getCrestBank(_username){
     const uri = process.env.uri;
     
   const client = new MongoClient(uri);
   await client.connect();
-  const dbName = "CrestBank";
-  const collectionName = "Dashboard";
+  const dbName = "Bankers";
+  const collectionName = "CrestBank";
 
   const database = client.db(dbName);
   const collection = database.collection(collectionName);
@@ -204,7 +247,7 @@ async function login(username,password) {
   const uri = process.env.uri;
   const client = new MongoClient(uri);
   await client.connect();
-  const dbName = "CrestBank";
+  const dbName = "Bankers";
   const collectionName = "Users";
   const database = client.db(dbName);
   const collection = database.collection(collectionName);
@@ -234,15 +277,15 @@ async function login(username,password) {
 }
 
 
-async function register(_username, _password, _country, _email, _address, _mobile, _first, _last, _maiden) {
+async function register(_username, _password, _country, _email, _address, _mobile, _first, _last, _maiden, _image) {
   const uri = process.env.uri;
   const client = new MongoClient(uri);  
   await client.connect();
-  const dbName = "CrestBank";
+  const dbName = "Bankers";
   const collectionName = "Users";
   const database = client.db(dbName);
   const user_collection = database.collection(collectionName);
-  const dashboard_collection = database.collection("Dashboard");
+  const CrestBank_collection = database.collection("CrestBank");
 
   const acc_number = generateRandomString();
   const user = {
@@ -256,10 +299,11 @@ async function register(_username, _password, _country, _email, _address, _mobil
     last_name: _last,
     maiden_name: _maiden,
     acc_num : acc_number,
+    image: _image,
     active: "true"
   };
 
-  const dashboard = {
+  const CrestBank = {
     account: acc_number, // should be 15
     balance : 0,
     deposits: 0,
@@ -273,9 +317,9 @@ async function register(_username, _password, _country, _email, _address, _mobil
   }
   try {
     const insertOneUser = await user_collection.insertOne(user);
-    const insertManyDashboard = await dashboard_collection.insertOne(dashboard);
+    const insertManyCrestBank = await CrestBank_collection.insertOne(CrestBank);
     //console.log(`${user.username} successfully inserted.\n`);
-    console.log(`${dashboard.account} successfully inserted.\n`);
+    console.log(`${CrestBank.account} successfully inserted.\n`);
     await client.close();
     return true;
   } catch (err) {
@@ -320,12 +364,12 @@ async function root(username,password) {
 }
 
 
-app.get('/dashboard/:user', (req,res)=>{
-    async function getMyDashboard(){
+app.get('/CrestBank/:user', (req,res)=>{
+    async function getMyCrestBank(){
         const { user } = req.params;
-        const data = await getDashBoard(user);
+        const data = await getCrestBank(user);
         res.send({data:data})
-    }getMyDashboard()
+    }getMyCrestBank()
 })
 
 
@@ -338,11 +382,19 @@ app.get('/transactions/:user', (req,res)=>{
 })
 
 
-app.post('/register',(req,res)=>{
+app.post('/register', upload.single('file'),(req,res)=>{
   async function create_account() {
-    console.log(req.body)
+    let image_url = undefined
+    if (req.file !== undefined) {
+      //console.log(req.file.buffer)
+      const image_stream = new BufferStream(req.file.buffer);
+      const url = await storeImages(image_stream,req.file.originalname);
+      console.log("url: ",url)
+      image_url = "https://ipfs.io/ipfs/"+url.IpfsHash
+      console.log("url: ",image_url)
+    }
     const { username, password, country, email, address, mobile,first_name,last_name,maiden_name } = req.body;
-    const success = await register(username,password,country,email,address,mobile,first_name,last_name,maiden_name);
+    const success = await register(username,password,country,email,address,mobile,first_name,last_name,maiden_name,image_url);
     if (success) {
         res.send(success)
     }else{
@@ -476,7 +528,7 @@ app.get('/account_num/:acc', (req,res)=>{
 
 app.get('/accounts', (req,res)=>{
   async function getMyUsers(){
-      const data = await getAllDashboard();
+      const data = await getAllCrestBank();
       res.send({data:data})
   }getMyUsers()
 })
