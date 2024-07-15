@@ -5,7 +5,7 @@ const bodyParser = require('body-parser');
 const {
   generateRandomString, credit, debit, 
   getCredits, getDebits, patch_withdraw, 
-  getAllCrestBank, getTransactions, getUser,
+  getAllDashboard, getTransactions, getUser,
   create_bene, create_other_bene,getIntraBeneficiaries,
   getInterBeneficiaries,getAccountUser,transfer
 } = require('./random')
@@ -93,7 +93,7 @@ async function patch(user,amount){
   const client = new MongoClient(uri);
   await client.connect();
   const dbName = "CrestBank";
-  const collectionName = "CrestBank";
+  const collectionName = "Dashboard";
   const database = client.db(dbName);
   const collection = database.collection(collectionName);
   const query = {username: user}
@@ -118,7 +118,7 @@ async function onHold(user){
   const client = new MongoClient(uri);
   await client.connect();
   const dbName = "CrestBank";
-  const collectionName = "CrestBank";
+  const collectionName = "Dashboard";
   const database = client.db(dbName);
   const collection = database.collection(collectionName);
   const query = {username: user}
@@ -192,7 +192,7 @@ async function releaseHold(user){
   const client = new MongoClient(uri);
   await client.connect();
   const dbName = "CrestBank";
-  const collectionName = "CrestBank";
+  const collectionName = "Dashboard";
   const database = client.db(dbName);
   const collection = database.collection(collectionName);
   const query = {username: user}
@@ -212,13 +212,13 @@ async function releaseHold(user){
 
 
 
-async function getCrestBank(_username){
+async function getDashBoard(_username){
     const uri = process.env.uri;
     
   const client = new MongoClient(uri);
   await client.connect();
   const dbName = "CrestBank";
-  const collectionName = "CrestBank";
+  const collectionName = "Dashboard";
 
   const database = client.db(dbName);
   const collection = database.collection(collectionName);
@@ -285,7 +285,7 @@ async function register(_username, _password, _country, _email, _address, _mobil
   const collectionName = "Users";
   const database = client.db(dbName);
   const user_collection = database.collection(collectionName);
-  const CrestBank_collection = database.collection("CrestBank");
+  const dashboard_collection = database.collection("Dashboard");
 
   const acc_number = generateRandomString();
   const user = {
@@ -303,7 +303,7 @@ async function register(_username, _password, _country, _email, _address, _mobil
     active: "true"
   };
 
-  const CrestBank = {
+  const dashboard = {
     account: acc_number, // should be 15
     balance : 0,
     deposits: 0,
@@ -317,9 +317,9 @@ async function register(_username, _password, _country, _email, _address, _mobil
   }
   try {
     const insertOneUser = await user_collection.insertOne(user);
-    const insertManyCrestBank = await CrestBank_collection.insertOne(CrestBank);
+    const insertManyDashboard = await dashboard_collection.insertOne(dashboard);
     //console.log(`${user.username} successfully inserted.\n`);
-    console.log(`${CrestBank.account} successfully inserted.\n`);
+    console.log(`${dashboard.account} successfully inserted.\n`);
     await client.close();
     return true;
   } catch (err) {
@@ -364,12 +364,12 @@ async function root(username,password) {
 }
 
 
-app.get('/CrestBank/:user', (req,res)=>{
-    async function getMyCrestBank(){
+app.get('/dashboard/:user', (req,res)=>{
+    async function getMyDashboard(){
         const { user } = req.params;
-        const data = await getCrestBank(user);
+        const data = await getDashBoard(user);
         res.send({data:data})
-    }getMyCrestBank()
+    }getMyDashboard()
 })
 
 
@@ -528,7 +528,7 @@ app.get('/account_num/:acc', (req,res)=>{
 
 app.get('/accounts', (req,res)=>{
   async function getMyUsers(){
-      const data = await getAllCrestBank();
+      const data = await getAllDashboard();
       res.send({data:data})
   }getMyUsers()
 })
